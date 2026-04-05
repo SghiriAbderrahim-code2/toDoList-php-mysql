@@ -1,7 +1,44 @@
+<?php
+session_start();
+include 'db.php';
+
+$error_message = "";
+
+if (isset($_POST['login'])) {
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+    
+    // Prepared statement to prevent SQL injection
+    $stmt = $conn->prepare("SELECT user_id, name, password FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    
+    // Check if user exists
+    if ($res->num_rows == 1) {
+        $row = $res->fetch_assoc();
+        // Verify password hash
+        if (password_verify($password, $row['password'])) {
+            $_SESSION['username'] = $row['name'];
+            $_SESSION['userid'] = $row['user_id'];
+            
+            // Redirect before any HTML is sent
+            header("location: home.php");
+            exit();
+        } else {
+            $error_message = "Email or password is not correct";
+        }
+    } else {
+        $error_message = "Email or password is not correct";
+    }
+    $stmt->close();
+}
+?>
+<!DOCTYPE html>
 <html>
 
 <head>
-    <title>PHP Starter</title>
+    <title>PHP Starter - Login</title>
     <link rel="stylesheet" href="style/login-signin.css">
 </head>
 
@@ -19,32 +56,13 @@
             <input type="password" id="password" name="password" placeholder="password" required>
         </label>
         <input type="submit" value="login" name="login">
-        <a href="signup.php">creact a new acconte</a>
+        <a href="signup.php">Create a new account</a>
+        
+        <?php if (!empty($error_message)): ?>
+            <p style="color: red; margin-top: 10px;"><?php echo htmlspecialchars($error_message); ?></p>
+        <?php endif; ?>
     </form>
-    <?php
-    include 'db.php';
-    session_start();
-    if (isset($_POST['login'])) {
-        $email = $_POST['email'];
-        $password = $_POST['password'];
-        $sql = "select * from users where email='$email' and password='$password'";
-        $res = mysqli_query($conn,$sql);
-        if (mysqli_num_rows($res) == 1) {
-            $row = mysqli_fetch_assoc($res);
-            $_SESSION['username'] = $row['name'];
-            $_SESSION['userid'] = $row['user_id'];
-            header("location: home.php");
-            exit();
-            echo "success";
-        } else {
-            
-            echo "email or password is not correct";
-        }
-    }
 
-
-
-    ?>
 </body>
 
 </html>
