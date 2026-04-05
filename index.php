@@ -2,12 +2,12 @@
 
 <head>
     <title>PHP Starter</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style/login-signin.css">
 </head>
 
 <body>
 
-    <form method="POST">
+    <form method="POST" >
         <label>
             Email
             <br>
@@ -23,13 +23,19 @@
     </form>
     <?php
     include 'db.php';
+    session_start();
     if (isset($_POST['login'])) {
         $email = $_POST['email'];
         $password = $_POST['password'];
         $sql = "select * from users where email='$email' and password='$password'";
         $res = mysqli_query($conn,$sql);
         if (mysqli_num_rows($res) == 1) {
-            echo "successefly login";
+            $row = mysqli_fetch_assoc($res);
+            $_SESSION['username'] = $row['name'];
+            $_SESSION['userid'] = $row['user_id'];
+            header("location: home.php");
+            exit();
+            echo "success";
         } else {
             
             echo "email or password is not correct";

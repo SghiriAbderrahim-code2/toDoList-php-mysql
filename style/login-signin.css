@@ -1,30 +1,10 @@
-*{
-    padding: 0px;
-    margin: 0px;
-}
+@import url('style.css');
 
-:root{
-    --first-color: rgb(15, 0, 28);
-    --second-color: rgb(255, 19, 58);
-    --text-color: aliceblue;
-}
-
-body{
-    width: 100vw;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--first-color);
-    color: var(--text-color);
-    font-family: sans-serif;
-}
 
 form{
     width: 70vw;
     height: 60vw;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.613);
+    border: 2px solid var(--text-color);
     display: flex;
     flex-direction: column;
     justify-content: center;
