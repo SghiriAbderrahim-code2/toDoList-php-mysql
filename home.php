@@ -36,7 +36,7 @@ if (!isset($_SESSION['userid'])) {
             while ($row = $result->fetch_assoc()) {
                 $id = $row["todo_id"];
                 $title = $row["title"];
-                $status = $row["status"] == 1 ? "cheked" : "";
+                $status = $row["status"] == 1 ? "checked" : "";
                 echo "
     <div class='todo'>
        <input type='checkbox' onchange='changeStatus($id," . $row["status"] . ")' name='status' $status >
@@ -105,6 +105,13 @@ if (!isset($_SESSION['userid'])) {
         mysqli_query($conn, $sqlDelet);
         header('location: home.php');
     }
+    if (isset($_GET['statusTodoId'])) {
+        $todoId = $_GET['statusTodoId'];
+        $status = $_GET['newStatus'];
+        $sqlDelet = "UPDATE todos SET status = $status WHERE todo_id = $todoId;";
+        mysqli_query($conn, $sqlDelet);
+        header('location: home.php');
+    }
     ?>
 
     <script>
@@ -116,13 +123,13 @@ if (!isset($_SESSION['userid'])) {
         function edit(id, title) {
             document.getElementById('edit-checker').style.display = 'flex';
             document.getElementById('editInput').value = id;
-
             document.getElementById('newTitle').value = String(title);
 
         }
 
-        function changeStatus(id,tatus){
-
+        function changeStatus(id,status){
+            
+window.location.href += `?statusTodoId=${id}&newStatus=${status==1?0:1}`;
         }
 
         function hidde(id) {
