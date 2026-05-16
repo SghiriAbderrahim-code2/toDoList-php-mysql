@@ -4,8 +4,8 @@
 }
 
 :root{
-    --first-color: rgb(10, 0, 28);
-    --second-color: rgb(255, 19, 58);
+    --first-color: rgb(7, 7, 7);
+    --second-color: rgb(0, 136, 125);
     --text-color: aliceblue;
 }
 
@@ -20,4 +20,5 @@ body{
     color: var(--text-color);
     font-family: sans-serif;
 }
+
 

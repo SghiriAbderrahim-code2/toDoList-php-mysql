@@ -9,10 +9,8 @@ if(isset($_POST["signup"])){
     $email = $_POST['email'];
     $password = $_POST['password'];
     
-    // Encrypt the password using PHP's built-in securely hashed algorithm
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
     
-    // Use prepared statements to prevent SQL Injection
     $stmt = $conn->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
     $stmt->bind_param("sss", $name, $email, $hashed_password);
     

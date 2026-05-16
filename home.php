@@ -1,14 +1,29 @@
 <?php
 session_start();
+$user_id = $_SESSION['userid'];
 if (!isset($_SESSION['userid'])) {
     header('location: index.php');
     exit();
 }
 
-include 'db.php';
-$user_id = $_SESSION['userid'];
 
-// 0. Handle Logout
+
+include 'db.php';
+
+
+
+if (isset($_FILES["img"])) {
+    $image = $_FILES['img']['name'];
+    move_uploaded_file($_FILES['img']['tmp_name'],'img/'.$image);
+    $stmt = $conn->prepare("UPDATE users set image=? where user_id=?");
+    $stmt->bind_param("si", $image, $user_id);
+    if ($stmt->execute()) {
+        header('location: home.php');
+        exit();
+    }
+    $stmt->close();
+}
+
 if (isset($_GET['logout'])) {
     session_unset();
     session_destroy();
@@ -16,7 +31,6 @@ if (isset($_GET['logout'])) {
     exit();
 }
 
-// 1. Handle adding a new Todo
 if (isset($_POST["add"])) {
     $title = $_POST['title'];
 
@@ -29,7 +43,6 @@ if (isset($_POST["add"])) {
     $stmt->close();
 }
 
-// 2. Handle deleting a Todo
 if (isset($_POST['deletedTodoId'])) {
     $todoId = $_POST['deletedTodoId'];
     
@@ -41,7 +54,6 @@ if (isset($_POST['deletedTodoId'])) {
     exit();
 }
 
-// 3. Handle editing a Todo
 if (isset($_POST['editTodoId'])) {
     $todoId = $_POST['editTodoId'];
     $title = $_POST['newTitle'];
@@ -54,7 +66,6 @@ if (isset($_POST['editTodoId'])) {
     exit();
 }
 
-// 4. Handle status change a Todo
 if (isset($_GET['statusTodoId']) && isset($_GET['newStatus'])) {
     $todoId = $_GET['statusTodoId'];
     $status = $_GET['newStatus'];
@@ -80,9 +91,35 @@ if (isset($_GET['statusTodoId']) && isset($_GET['newStatus'])) {
 
 <body>
     <main>
-        <header class="slide" style="display: flex; justify-content: space-between; align-items: center;">
+        <header class="slide" >
+            <div id="avatar">
+<img 
+            id="avatarImg" 
+            src="
+            <?php
+            $stmt = $conn->prepare("SELECT image FROM users WHERE user_id = ? ");
+            $stmt->bind_param("i", $user_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if($result){
+                $row = $result->fetch_assoc();
+                if ($row['image'] == null) {
+                    $src='simple-user-default-icon-free-png.webp';
+                }else{
+$src = $row['image'];
+                }
+               echo "img/".$src; 
+            }else{
+                echo 'img/simple-user-default-icon-free-png.webp';
+            }
+            ?>
+            "
+            alt="avatar">
+            <button onclick="document.getElementById('avatar-img-changer').style.display='flex'">Edit</button>
+            </div>
+            
             <h1>Hi <?php echo htmlspecialchars($_SESSION['username']); ?></h1>
-            <a href="?logout=true" style="padding: 6px 12px; background-color: #ff4757; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: bold;">Logout</a>
+            <a href="?logout=true"><button id="logout">Logout</button></a>
         </header>
         <nav class="slide">
             <form action="" method="POST">
@@ -102,7 +139,6 @@ if (isset($_GET['statusTodoId']) && isset($_GET['newStatus'])) {
                 $id = $row["todo_id"];
                 $title = htmlspecialchars($row["title"]);
                 $statusHtml = $row["status"] == 1 ? "checked" : "";
-                // Encode the JS parameters safely
                 $jsTitle = htmlspecialchars($row["title"], ENT_QUOTES, 'UTF-8');
                 
                 echo "
@@ -140,8 +176,18 @@ if (isset($_GET['statusTodoId']) && isset($_GET['newStatus'])) {
             <button class="btn" type="submit">Ok</button>
         </div>
     </form>
+<form class="checker" id="avatar-img-changer" action="home.php" method="post" enctype="multipart/form-data">
+        <img 
+            id="avatarImgChanger" src="img/simple-user-default-icon-free-png.webp" alt="avatar">
 
+            <input type="file" name="img" id="changeAvatarInput" accept="image/*">
+            <div class="buttons">
+            <div class="btn" onclick="hidde('avatar-img-changer')">Cancel</div>
+            <button class="btn" type="submit">Ok</button>
+        </div>
+    </form>
     <script>
+        
         function delet(id) {
             document.getElementById('delet-checker').style.display = 'flex';
             document.getElementById('deletInput').value = id;
@@ -161,6 +207,13 @@ if (isset($_GET['statusTodoId']) && isset($_GET['newStatus'])) {
         function hidde(id) {
             document.getElementById(id).style.display = 'none';
         }
+
+        document.getElementById('changeAvatarInput').addEventListener('change',(event)=>{
+            const file = event.target.files[0];
+            if (!file) return;
+            const imgUrl = URL.createObjectURL(file);
+            document.getElementById('avatarImgChanger').src = imgUrl;
+        });
     </script>
 </body>
 
