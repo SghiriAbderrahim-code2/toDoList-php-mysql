@@ -12,6 +12,33 @@ include 'db.php';
 
 $error_message = "";
 
+$selectedTab = "all";
+if (isset($_GET['tab'])) {
+    $requestedTab = $_GET['tab'];
+    $allowedTabs = array("all", "active", "completed");
+    if (in_array($requestedTab, $allowedTabs, true)) {
+        $selectedTab = $requestedTab;
+    }
+}
+
+$searchText = "";
+if (isset($_GET['search'])) {
+    $searchText = $_GET['search'];
+}
+
+$searchQuerySuffix = "";
+if ($searchText != "") {
+    $searchQuerySuffix = "&search=" . urlencode($searchText);
+}
+
+$allTabLink = "home.php?tab=all" . $searchQuerySuffix;
+$activeTabLink = "home.php?tab=active" . $searchQuerySuffix;
+$completedTabLink = "home.php?tab=completed" . $searchQuerySuffix;
+
+$allTabClass = $selectedTab == "all" ? "btn selected" : "btn";
+$activeTabClass = $selectedTab == "active" ? "btn selected" : "btn";
+$completedTabClass = $selectedTab == "completed" ? "btn selected" : "btn";
+
 if (isset($_FILES["img"])) {
     $image = $_FILES['img']['name'];
     move_uploaded_file($_FILES['img']['tmp_name'],'img/'.$image);
@@ -187,56 +214,90 @@ $src = $row['image'];
             <?php endif; ?>
         </nav>
         <section>
+            <div class="todo-filters">
+                <div class="buttons">
+                    <a class="<?php echo $allTabClass; ?>" href="<?php echo $allTabLink; ?>">All</a>
+                    <a class="<?php echo $activeTabClass; ?>" href="<?php echo $activeTabLink; ?>">Active</a>
+                    <a class="<?php echo $completedTabClass; ?>" href="<?php echo $completedTabLink; ?>">Completed</a>
+                </div>
+                <form action="home.php" method="GET">
+                    <input type="hidden" name="tab" value="<?php echo htmlspecialchars($selectedTab); ?>">
+                    <input type="text" name="search" placeholder="Search by title" value="<?php echo htmlspecialchars($searchText); ?>">
+                    <input type="submit" value="Search">
+                </form>
+            </div>
             <?php
             $stmt = $conn->prepare("SELECT * FROM todos WHERE user_id = ? ORDER BY todo_id DESC");
             $stmt->bind_param("i", $user_id);
             $stmt->execute();
             $result = $stmt->get_result();
 
-            echo "<div class='container'>";
+            $filteredTodos = array();
             while ($row = $result->fetch_assoc()) {
-                $id = $row["todo_id"];
-                $title = htmlspecialchars($row["title"]);
-                $statusHtml = $row["status"] == 1 ? "checked" : "";
-                $jsTitle = htmlspecialchars($row["title"], ENT_QUOTES, 'UTF-8');
-
-                $dueDate = $row["due_date"];
-                $jsDueDate = "";
-                $dueDateHtml = "";
-                if ($dueDate != null) {
-                    $jsDueDate = htmlspecialchars($dueDate, ENT_QUOTES, 'UTF-8');
-                    $dueDateFormatted = date('M j, Y', strtotime($dueDate));
-                    $dueDateHtml = "<span class='due-date'>Due: $dueDateFormatted</span>";
+                if ($selectedTab == "active" && $row["status"] != 0) {
+                    continue;
                 }
-
-                $priority = $row["priority"];
-                $priorityLabel = ucfirst($priority);
-                $jsPriority = htmlspecialchars($priority, ENT_QUOTES, 'UTF-8');
-
-                $isOverdue = false;
-                if ($dueDate != null && $row["status"] == 0) {
-                    $isOverdue = $dueDate < date('Y-m-d');
+                if ($selectedTab == "completed" && $row["status"] != 1) {
+                    continue;
                 }
-                $overdueClass = $isOverdue ? " overdue" : "";
-
-                echo "
-                <div class='todo$overdueClass'>
-                   <input type='checkbox' onchange='changeStatus($id," . $row["status"] . ")' name='status' $statusHtml >
-                   <div class='todo-details'>
-                       <p>$title</p>
-                       <div class='todo-meta'>
-                           $dueDateHtml
-                           <span class='priority-badge priority-badge-$priority'>$priorityLabel</span>
-                       </div>
-                   </div>
-                   <div class='actions'>
-                   <button onclick='edit($id,`$jsTitle`,`$jsDueDate`,`$jsPriority`)'>Edit</button>
-                   <button onclick='delet($id)'>Delete</button>
-                   </div>
-                </div>
-                ";
+                if ($searchText != "" && stripos($row["title"], $searchText) === false) {
+                    continue;
+                }
+                $filteredTodos[] = $row;
             }
-            echo "</div>";
+
+            if (count($filteredTodos) == 0) {
+                if ($searchText != "") {
+                    echo "<p class='empty-state'>No todos match your search.</p>";
+                } else {
+                    echo "<p class='empty-state'>No todos here yet.</p>";
+                }
+            } else {
+                echo "<div class='container'>";
+                foreach ($filteredTodos as $row) {
+                    $id = $row["todo_id"];
+                    $title = htmlspecialchars($row["title"]);
+                    $statusHtml = $row["status"] == 1 ? "checked" : "";
+                    $jsTitle = htmlspecialchars($row["title"], ENT_QUOTES, 'UTF-8');
+
+                    $dueDate = $row["due_date"];
+                    $jsDueDate = "";
+                    $dueDateHtml = "";
+                    if ($dueDate != null) {
+                        $jsDueDate = htmlspecialchars($dueDate, ENT_QUOTES, 'UTF-8');
+                        $dueDateFormatted = date('M j, Y', strtotime($dueDate));
+                        $dueDateHtml = "<span class='due-date'>Due: $dueDateFormatted</span>";
+                    }
+
+                    $priority = $row["priority"];
+                    $priorityLabel = ucfirst($priority);
+                    $jsPriority = htmlspecialchars($priority, ENT_QUOTES, 'UTF-8');
+
+                    $isOverdue = false;
+                    if ($dueDate != null && $row["status"] == 0) {
+                        $isOverdue = $dueDate < date('Y-m-d');
+                    }
+                    $overdueClass = $isOverdue ? " overdue" : "";
+
+                    echo "
+                    <div class='todo$overdueClass'>
+                       <input type='checkbox' onchange='changeStatus($id," . $row["status"] . ")' name='status' $statusHtml >
+                       <div class='todo-details'>
+                           <p>$title</p>
+                           <div class='todo-meta'>
+                               $dueDateHtml
+                               <span class='priority-badge priority-badge-$priority'>$priorityLabel</span>
+                           </div>
+                       </div>
+                       <div class='actions'>
+                       <button onclick='edit($id,`$jsTitle`,`$jsDueDate`,`$jsPriority`)'>Edit</button>
+                       <button onclick='delet($id)'>Delete</button>
+                       </div>
+                    </div>
+                    ";
+                }
+                echo "</div>";
+            }
             $stmt->close();
             ?>
         </section>
