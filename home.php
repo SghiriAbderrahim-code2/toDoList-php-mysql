@@ -10,7 +10,7 @@ if (!isset($_SESSION['userid'])) {
 
 include 'db.php';
 
-
+$error_message = "";
 
 if (isset($_FILES["img"])) {
     $image = $_FILES['img']['name'];
@@ -33,14 +33,40 @@ if (isset($_GET['logout'])) {
 
 if (isset($_POST["add"])) {
     $title = $_POST['title'];
+    $dueDate = $_POST['due_date'];
+    $priority = $_POST['priority'];
 
-    $stmt = $conn->prepare("INSERT INTO todos (title, status, user_id) VALUES (?, 0, ?)");
-    $stmt->bind_param("si", $title, $user_id);
-    if ($stmt->execute()) {
-        header('location: home.php');
-        exit();
+    $validatedDueDate = null;
+    if ($dueDate != "") {
+        $dueDateObject = DateTime::createFromFormat('Y-m-d', $dueDate);
+        if ($dueDateObject === false || $dueDateObject->format('Y-m-d') != $dueDate) {
+            $error_message = "Due date is not a valid date";
+        } else {
+            $validatedDueDate = $dueDate;
+        }
     }
-    $stmt->close();
+
+    $validatedPriority = "medium";
+    $allowedPriorities = array("low", "medium", "high");
+    if ($priority != "") {
+        if (in_array($priority, $allowedPriorities, true)) {
+            $validatedPriority = $priority;
+        } else {
+            $error_message = "Priority must be low, medium or high";
+        }
+    }
+
+    if ($error_message == "") {
+        $stmt = $conn->prepare("INSERT INTO todos (title, status, due_date, priority, user_id) VALUES (?, 0, ?, ?, ?)");
+        $stmt->bind_param("sssi", $title, $validatedDueDate, $validatedPriority, $user_id);
+        if ($stmt->execute()) {
+            $stmt->close();
+            header('location: home.php');
+            exit();
+        }
+        $stmt->close();
+        $error_message = "Could not add the todo";
+    }
 }
 
 if (isset($_POST['deletedTodoId'])) {
@@ -57,13 +83,37 @@ if (isset($_POST['deletedTodoId'])) {
 if (isset($_POST['editTodoId'])) {
     $todoId = $_POST['editTodoId'];
     $title = $_POST['newTitle'];
+    $dueDate = $_POST['newDueDate'];
+    $priority = $_POST['newPriority'];
 
-    $stmt = $conn->prepare("UPDATE todos SET title = ? WHERE todo_id = ? AND user_id = ?");
-    $stmt->bind_param("sii", $title, $todoId, $user_id);
-    $stmt->execute();
-    $stmt->close();
-    header('location: home.php');
-    exit();
+    $validatedDueDate = null;
+    if ($dueDate != "") {
+        $dueDateObject = DateTime::createFromFormat('Y-m-d', $dueDate);
+        if ($dueDateObject === false || $dueDateObject->format('Y-m-d') != $dueDate) {
+            $error_message = "Due date is not a valid date";
+        } else {
+            $validatedDueDate = $dueDate;
+        }
+    }
+
+    $validatedPriority = "medium";
+    $allowedPriorities = array("low", "medium", "high");
+    if ($priority != "") {
+        if (in_array($priority, $allowedPriorities, true)) {
+            $validatedPriority = $priority;
+        } else {
+            $error_message = "Priority must be low, medium or high";
+        }
+    }
+
+    if ($error_message == "") {
+        $stmt = $conn->prepare("UPDATE todos SET title = ?, due_date = ?, priority = ? WHERE todo_id = ? AND user_id = ?");
+        $stmt->bind_param("sssii", $title, $validatedDueDate, $validatedPriority, $todoId, $user_id);
+        $stmt->execute();
+        $stmt->close();
+        header('location: home.php');
+        exit();
+    }
 }
 
 if (isset($_GET['statusTodoId']) && isset($_GET['newStatus'])) {
@@ -124,8 +174,17 @@ $src = $row['image'];
         <nav class="slide">
             <form action="" method="POST">
                 <input type="text" name="title" id="title" required>
+                <input type="date" name="due_date" id="due_date">
+                <select name="priority" id="priority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
                 <input type="submit" name="add" value="Add">
             </form>
+            <?php if (!empty($error_message)): ?>
+                <p style="color: red; margin-top: 10px;"><?php echo htmlspecialchars($error_message); ?></p>
+            <?php endif; ?>
         </nav>
         <section>
             <?php
@@ -140,13 +199,38 @@ $src = $row['image'];
                 $title = htmlspecialchars($row["title"]);
                 $statusHtml = $row["status"] == 1 ? "checked" : "";
                 $jsTitle = htmlspecialchars($row["title"], ENT_QUOTES, 'UTF-8');
-                
+
+                $dueDate = $row["due_date"];
+                $jsDueDate = "";
+                $dueDateHtml = "";
+                if ($dueDate != null) {
+                    $jsDueDate = htmlspecialchars($dueDate, ENT_QUOTES, 'UTF-8');
+                    $dueDateFormatted = date('M j, Y', strtotime($dueDate));
+                    $dueDateHtml = "<span class='due-date'>Due: $dueDateFormatted</span>";
+                }
+
+                $priority = $row["priority"];
+                $priorityLabel = ucfirst($priority);
+                $jsPriority = htmlspecialchars($priority, ENT_QUOTES, 'UTF-8');
+
+                $isOverdue = false;
+                if ($dueDate != null && $row["status"] == 0) {
+                    $isOverdue = $dueDate < date('Y-m-d');
+                }
+                $overdueClass = $isOverdue ? " overdue" : "";
+
                 echo "
-                <div class='todo'>
+                <div class='todo$overdueClass'>
                    <input type='checkbox' onchange='changeStatus($id," . $row["status"] . ")' name='status' $statusHtml >
-                   <p>$title</p>
+                   <div class='todo-details'>
+                       <p>$title</p>
+                       <div class='todo-meta'>
+                           $dueDateHtml
+                           <span class='priority-badge priority-badge-$priority'>$priorityLabel</span>
+                       </div>
+                   </div>
                    <div class='actions'>
-                   <button onclick='edit($id,`$jsTitle`)'>Edit</button>
+                   <button onclick='edit($id,`$jsTitle`,`$jsDueDate`,`$jsPriority`)'>Edit</button>
                    <button onclick='delet($id)'>Delete</button>
                    </div>
                 </div>
@@ -171,6 +255,12 @@ $src = $row['image'];
     <form class="checker" id="edit-checker" action="home.php" method="post">
         <input type="hidden" id='editInput' name="editTodoId" value="">
         <input type="text" name="newTitle" id="newTitle" value="">
+        <input type="date" name="newDueDate" id="newDueDate" value="">
+        <select name="newPriority" id="newPriority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+        </select>
         <div class="buttons">
             <div class="btn" onclick="hidde('edit-checker')">Cancel</div>
             <button class="btn" type="submit">Ok</button>
@@ -193,10 +283,12 @@ $src = $row['image'];
             document.getElementById('deletInput').value = id;
         }
 
-        function edit(id, title) {
+        function edit(id, title, dueDate, priority) {
             document.getElementById('edit-checker').style.display = 'flex';
             document.getElementById('editInput').value = id;
             document.getElementById('newTitle').value = String(title);
+            document.getElementById('newDueDate').value = String(dueDate);
+            document.getElementById('newPriority').value = String(priority);
         }
 
         function changeStatus(id, status){

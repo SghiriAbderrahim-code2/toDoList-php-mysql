@@ -59,6 +59,47 @@ section .container{
     margin-bottom: 15px;
     border-radius: 5px;
 }
+.container .todo.overdue{
+    border-color: var(--overdue-color);
+}
+.todo-details{
+    flex: 1;
+    margin: 0 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.todo-meta{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+.todo-meta .due-date{
+    color: var(--text-color);
+}
+.container .todo.overdue .due-date{
+    color: var(--overdue-color);
+    font-weight: bold;
+}
+.priority-badge{
+    border: none;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+}
+.priority-badge-low{
+    background-color: var(--low-priority-color);
+}
+.priority-badge-medium{
+    background-color: var(--medium-priority-color);
+    color: var(--first-color);
+}
+.priority-badge-high{
+    background-color: var(--high-priority-color);
+}
 
 .checker{
     position: absolute;
